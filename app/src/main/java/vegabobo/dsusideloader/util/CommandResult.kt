@@ -1,60 +1,28 @@
 package vegabobo.dsusideloader.util
 
 /**
- * Result of a command execution
+ * Simple wrapper for command execution results
+ * Works with the existing CmdRunner utility
  */
 data class CommandResult(
     val isSuccess: Boolean,
     val output: String,
-    val exitCode: Int = 0,
-)
+    val exitCode: Int = if (isSuccess) 0 else 1,
+) {
+    companion object {
+        fun success(output: String): CommandResult = CommandResult(true, output, 0)
+        fun failure(output: String, exitCode: Int = 1): CommandResult = CommandResult(false, output, exitCode)
 
-/**
- * Enhanced CmdRunner with result objects
- */
-object EnhancedCmdRunner {
-
-    /**
-     * Run command and return structured result
-     */
-    fun runCommand(cmd: String): CommandResult {
-        return try {
-            val output = CmdRunner.run(cmd)
-            CommandResult(
-                isSuccess = true,
-                output = output,
-                exitCode = 0,
-            )
-        } catch (e: Exception) {
-            CommandResult(
-                isSuccess = false,
-                output = e.message ?: "Command failed",
-                exitCode = -1,
-            )
-        }
-    }
-
-    /**
-     * Run command with callback for each line
-     */
-    fun runCommandWithCallback(cmd: String, onReceive: (String) -> Unit): CommandResult {
-        return try {
-            val outputLines = mutableListOf<String>()
-            CmdRunner.runReadEachLine(cmd) { line ->
-                outputLines.add(line)
-                onReceive(line)
+        /**
+         * Execute a command using CmdRunner and return a CommandResult
+         */
+        fun execute(command: String): CommandResult {
+            return try {
+                val output = CmdRunner.run(command)
+                success(output)
+            } catch (e: Exception) {
+                failure("Command failed: ${e.message}")
             }
-            CommandResult(
-                isSuccess = true,
-                output = outputLines.joinToString("\n"),
-                exitCode = 0,
-            )
-        } catch (e: Exception) {
-            CommandResult(
-                isSuccess = false,
-                output = e.message ?: "Command failed",
-                exitCode = -1,
-            )
         }
     }
 }
