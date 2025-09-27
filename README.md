@@ -136,3 +136,4 @@ To disable, use the same command, instead of `enable` , use `disable`
 For translators, we now have a Crowdin, feel free send your translations:
 <br>https://crowdin.com/translate/dsu-sideloader/<br>
 App icon made by [WSTxda](https://github.com/WSTxda)
+# Trigger build
