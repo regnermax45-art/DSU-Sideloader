@@ -256,6 +256,22 @@ data class PatchDefinition(
 }
 
 /**
+ * System components extracted from the device
+ */
+data class SystemComponents(
+    val systemPartition: ExtractedPartition? = null,
+    val vendorPartition: ExtractedPartition? = null,
+    val productPartition: ExtractedPartition? = null,
+    val bootPartition: ExtractedPartition? = null,
+    val halComponents: List<HalComponent> = listOf(),
+    val drivers: List<DriverInfo> = listOf(),
+    val buildProperties: Map<String, String> = mapOf(),
+    val systemProperties: Map<String, String> = mapOf(),
+    val selinuxPolicies: List<String> = listOf(),
+    val securityPatches: List<SecurityPatch> = listOf(),
+)
+
+/**
  * Result of a porting operation
  */
 data class PortingResult(

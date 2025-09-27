@@ -6,8 +6,12 @@ import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import vegabobo.dsusideloader.core.StorageManager
+import vegabobo.dsusideloader.model.DriverInfo
+import vegabobo.dsusideloader.model.ExtractedPartition
 import vegabobo.dsusideloader.model.HalComponent
+import vegabobo.dsusideloader.model.SecurityPatch
 import vegabobo.dsusideloader.model.Session
+import vegabobo.dsusideloader.model.SystemComponents
 import vegabobo.dsusideloader.service.PrivilegedProvider
 import vegabobo.dsusideloader.util.EnhancedCmdRunner
 
