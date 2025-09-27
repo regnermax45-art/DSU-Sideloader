@@ -2,9 +2,9 @@ package vegabobo.dsusideloader.porting
 
 import android.os.Build
 import android.util.Log
-import vegabobo.dsusideloader.model.*
+import vegabobo.dsusideloader.model.DeviceProfile
 import vegabobo.dsusideloader.service.PrivilegedProvider
-import vegabobo.dsusideloader.util.CmdRunner
+import vegabobo.dsusideloader.util.EnhancedCmdRunner
 
 /**
  * Device Profile Manager for hardware-specific configurations and optimizations
@@ -12,16 +12,16 @@ import vegabobo.dsusideloader.util.CmdRunner
  */
 class DeviceProfileManager {
     private val tag = this.javaClass.simpleName
-    
+
     /**
      * Get device profile for current device
      */
     suspend fun getDeviceProfile(): DeviceProfile {
         val deviceModel = Build.MODEL
         val deviceCodename = getDeviceCodename()
-        
+
         Log.d(tag, "Getting device profile for: $deviceModel ($deviceCodename)")
-        
+
         return when {
             isPixel7Pro(deviceModel, deviceCodename) -> getPixel7ProProfile()
             isPixel7(deviceModel, deviceCodename) -> getPixel7Profile()
@@ -31,7 +31,7 @@ class DeviceProfileManager {
             else -> getGenericDeviceProfile()
         }
     }
-    
+
     /**
      * Get Pixel 7 Pro specific device profile
      */
@@ -44,14 +44,14 @@ class DeviceProfileManager {
             androidVersion = Build.VERSION.RELEASE,
             securityPatchLevel = getSecurityPatchLevel(),
             buildFingerprint = Build.FINGERPRINT,
-            
+
             // Hardware specifications
             soc = "Google Tensor G2",
             architecture = "arm64-v8a",
             cpuCores = 8,
             ramSize = 12L * 1024L * 1024L * 1024L, // 12GB
             storageSize = 128L * 1024L * 1024L * 1024L, // 128GB base model
-            
+
             // Feature support
             supportedFeatures = listOf(
                 "android.hardware.camera.flash",
@@ -83,9 +83,9 @@ class DeviceProfileManager {
                 "android.hardware.screen.portrait",
                 "android.hardware.vulkan.level",
                 "android.hardware.vulkan.version",
-                "android.hardware.opengles.aep"
+                "android.hardware.opengles.aep",
             ),
-            
+
             hardwareFeatures = mapOf(
                 "5g_support" to true,
                 "wireless_charging" to true,
@@ -105,18 +105,18 @@ class DeviceProfileManager {
                 "magic_eraser" to true,
                 "live_translate" to true,
                 "car_crash_detection" to true,
-                "titan_m_security" to true
+                "titan_m_security" to true,
             ),
-            
+
             // Porting compatibility
             portingSupported = true,
             knownIssues = listOf(
                 "Camera HAL may require specific Tensor G2 optimizations",
                 "5G modem drivers need careful integration",
                 "Adaptive refresh rate requires display HAL patches",
-                "Titan M security chip may cause bootloader verification issues"
+                "Titan M security chip may cause bootloader verification issues",
             ),
-            
+
             recommendedPatches = listOf(
                 PatchType.CAMERA_HAL,
                 PatchType.GRAPHICS_DRIVERS,
@@ -126,11 +126,11 @@ class DeviceProfileManager {
                 PatchType.BATTERY_OPTIMIZATION,
                 PatchType.THERMAL_MANAGEMENT,
                 PatchType.PIXEL_FEATURES,
-                PatchType.GOOGLE_SERVICES
-            )
+                PatchType.GOOGLE_SERVICES,
+            ),
         )
     }
-    
+
     /**
      * Get Pixel 7 device profile
      */
@@ -143,14 +143,14 @@ class DeviceProfileManager {
             androidVersion = Build.VERSION.RELEASE,
             securityPatchLevel = getSecurityPatchLevel(),
             buildFingerprint = Build.FINGERPRINT,
-            
+
             // Hardware specifications
             soc = "Google Tensor G2",
             architecture = "arm64-v8a",
             cpuCores = 8,
             ramSize = 8L * 1024L * 1024L * 1024L, // 8GB
             storageSize = 128L * 1024L * 1024L * 1024L, // 128GB base model
-            
+
             // Feature support (similar to 7 Pro but without some premium features)
             supportedFeatures = listOf(
                 "android.hardware.camera.flash",
@@ -170,9 +170,9 @@ class DeviceProfileManager {
                 "android.hardware.nfc",
                 "android.hardware.usb.host",
                 "android.hardware.audio.low_latency",
-                "android.hardware.microphone"
+                "android.hardware.microphone",
             ),
-            
+
             hardwareFeatures = mapOf(
                 "5g_support" to true,
                 "wireless_charging" to true,
@@ -190,16 +190,16 @@ class DeviceProfileManager {
                 "magic_eraser" to true,
                 "live_translate" to true,
                 "car_crash_detection" to true,
-                "titan_m_security" to true
+                "titan_m_security" to true,
             ),
-            
+
             portingSupported = true,
             knownIssues = listOf(
                 "Camera HAL may require specific Tensor G2 optimizations",
                 "5G modem drivers need careful integration",
-                "Titan M security chip may cause bootloader verification issues"
+                "Titan M security chip may cause bootloader verification issues",
             ),
-            
+
             recommendedPatches = listOf(
                 PatchType.CAMERA_HAL,
                 PatchType.GRAPHICS_DRIVERS,
@@ -207,11 +207,11 @@ class DeviceProfileManager {
                 PatchType.CONNECTIVITY_DRIVERS,
                 PatchType.PERFORMANCE_TWEAKS,
                 PatchType.PIXEL_FEATURES,
-                PatchType.GOOGLE_SERVICES
-            )
+                PatchType.GOOGLE_SERVICES,
+            ),
         )
     }
-    
+
     /**
      * Get Pixel 6 Pro device profile
      */
@@ -224,13 +224,13 @@ class DeviceProfileManager {
             androidVersion = Build.VERSION.RELEASE,
             securityPatchLevel = getSecurityPatchLevel(),
             buildFingerprint = Build.FINGERPRINT,
-            
+
             soc = "Google Tensor",
             architecture = "arm64-v8a",
             cpuCores = 8,
             ramSize = 12L * 1024L * 1024L * 1024L,
             storageSize = 128L * 1024L * 1024L * 1024L,
-            
+
             supportedFeatures = listOf(
                 "android.hardware.camera.flash",
                 "android.hardware.camera.front",
@@ -239,9 +239,9 @@ class DeviceProfileManager {
                 "android.hardware.location.gps",
                 "android.hardware.wifi",
                 "android.hardware.bluetooth",
-                "android.hardware.nfc"
+                "android.hardware.nfc",
             ),
-            
+
             hardwareFeatures = mapOf(
                 "5g_support" to true,
                 "wireless_charging" to true,
@@ -249,24 +249,24 @@ class DeviceProfileManager {
                 "fingerprint_unlock" to true,
                 "telephoto_camera" to true,
                 "ultra_wide_camera" to true,
-                "titan_m_security" to true
+                "titan_m_security" to true,
             ),
-            
+
             portingSupported = true,
             knownIssues = listOf(
                 "First generation Tensor may have stability issues",
-                "Camera HAL requires Tensor-specific optimizations"
+                "Camera HAL requires Tensor-specific optimizations",
             ),
-            
+
             recommendedPatches = listOf(
                 PatchType.CAMERA_HAL,
                 PatchType.GRAPHICS_DRIVERS,
                 PatchType.PERFORMANCE_TWEAKS,
-                PatchType.PIXEL_FEATURES
-            )
+                PatchType.PIXEL_FEATURES,
+            ),
         )
     }
-    
+
     /**
      * Get Pixel 6 device profile
      */
@@ -279,13 +279,13 @@ class DeviceProfileManager {
             androidVersion = Build.VERSION.RELEASE,
             securityPatchLevel = getSecurityPatchLevel(),
             buildFingerprint = Build.FINGERPRINT,
-            
+
             soc = "Google Tensor",
             architecture = "arm64-v8a",
             cpuCores = 8,
             ramSize = 8L * 1024L * 1024L * 1024L,
             storageSize = 128L * 1024L * 1024L * 1024L,
-            
+
             supportedFeatures = listOf(
                 "android.hardware.camera.flash",
                 "android.hardware.camera.front",
@@ -294,9 +294,9 @@ class DeviceProfileManager {
                 "android.hardware.location.gps",
                 "android.hardware.wifi",
                 "android.hardware.bluetooth",
-                "android.hardware.nfc"
+                "android.hardware.nfc",
             ),
-            
+
             hardwareFeatures = mapOf(
                 "5g_support" to true,
                 "wireless_charging" to true,
@@ -304,24 +304,24 @@ class DeviceProfileManager {
                 "fingerprint_unlock" to true,
                 "telephoto_camera" to false,
                 "ultra_wide_camera" to true,
-                "titan_m_security" to true
+                "titan_m_security" to true,
             ),
-            
+
             portingSupported = true,
             knownIssues = listOf(
                 "First generation Tensor may have stability issues",
-                "Camera HAL requires Tensor-specific optimizations"
+                "Camera HAL requires Tensor-specific optimizations",
             ),
-            
+
             recommendedPatches = listOf(
                 PatchType.CAMERA_HAL,
                 PatchType.GRAPHICS_DRIVERS,
                 PatchType.PERFORMANCE_TWEAKS,
-                PatchType.PIXEL_FEATURES
-            )
+                PatchType.PIXEL_FEATURES,
+            ),
         )
     }
-    
+
     /**
      * Get generic Pixel device profile for other Pixel devices
      */
@@ -334,37 +334,37 @@ class DeviceProfileManager {
             androidVersion = Build.VERSION.RELEASE,
             securityPatchLevel = getSecurityPatchLevel(),
             buildFingerprint = Build.FINGERPRINT,
-            
+
             soc = "Unknown",
             architecture = Build.SUPPORTED_ABIS[0],
             cpuCores = Runtime.getRuntime().availableProcessors(),
             ramSize = 0L,
             storageSize = 0L,
-            
+
             supportedFeatures = listOf(
                 "android.hardware.camera.any",
                 "android.hardware.location.gps",
                 "android.hardware.wifi",
-                "android.hardware.bluetooth"
+                "android.hardware.bluetooth",
             ),
-            
+
             hardwareFeatures = mapOf(
-                "pixel_device" to true
+                "pixel_device" to true,
             ),
-            
+
             portingSupported = true,
             knownIssues = listOf(
-                "Generic Pixel profile - may require device-specific adjustments"
+                "Generic Pixel profile - may require device-specific adjustments",
             ),
-            
+
             recommendedPatches = listOf(
                 PatchType.CAMERA_HAL,
                 PatchType.GRAPHICS_DRIVERS,
-                PatchType.PIXEL_FEATURES
-            )
+                PatchType.PIXEL_FEATURES,
+            ),
         )
     }
-    
+
     /**
      * Get generic device profile for non-Pixel devices
      */
@@ -377,82 +377,82 @@ class DeviceProfileManager {
             androidVersion = Build.VERSION.RELEASE,
             securityPatchLevel = getSecurityPatchLevel(),
             buildFingerprint = Build.FINGERPRINT,
-            
+
             soc = "Unknown",
             architecture = Build.SUPPORTED_ABIS[0],
             cpuCores = Runtime.getRuntime().availableProcessors(),
             ramSize = 0L,
             storageSize = 0L,
-            
+
             supportedFeatures = listOf(
                 "android.hardware.camera.any",
                 "android.hardware.location.gps",
-                "android.hardware.wifi"
+                "android.hardware.wifi",
             ),
-            
+
             hardwareFeatures = mapOf(),
-            
+
             portingSupported = false, // Conservative default for unknown devices
             knownIssues = listOf(
                 "Generic device profile - porting may not be fully supported",
                 "Device-specific drivers and HALs may not be available",
-                "Hardware features may not work correctly"
+                "Hardware features may not work correctly",
             ),
-            
+
             recommendedPatches = listOf(
                 PatchType.GRAPHICS_DRIVERS,
-                PatchType.PERFORMANCE_TWEAKS
-            )
+                PatchType.PERFORMANCE_TWEAKS,
+            ),
         )
     }
-    
+
     /**
      * Check if device is Pixel 7 Pro
      */
     private fun isPixel7Pro(model: String, codename: String): Boolean {
-        return model.contains("Pixel 7 Pro", ignoreCase = true) || 
-               codename.equals("cheetah", ignoreCase = true)
+        return model.contains("Pixel 7 Pro", ignoreCase = true) ||
+            codename.equals("cheetah", ignoreCase = true)
     }
-    
+
     /**
      * Check if device is Pixel 7
      */
     private fun isPixel7(model: String, codename: String): Boolean {
         return (model.contains("Pixel 7", ignoreCase = true) && !model.contains("Pro", ignoreCase = true)) ||
-               codename.equals("panther", ignoreCase = true)
+            codename.equals("panther", ignoreCase = true)
     }
-    
+
     /**
      * Check if device is Pixel 6 Pro
      */
     private fun isPixel6Pro(model: String, codename: String): Boolean {
         return model.contains("Pixel 6 Pro", ignoreCase = true) ||
-               codename.equals("raven", ignoreCase = true)
+            codename.equals("raven", ignoreCase = true)
     }
-    
+
     /**
      * Check if device is Pixel 6
      */
     private fun isPixel6(model: String, codename: String): Boolean {
         return (model.contains("Pixel 6", ignoreCase = true) && !model.contains("Pro", ignoreCase = true)) ||
-               codename.equals("oriole", ignoreCase = true)
+            codename.equals("oriole", ignoreCase = true)
     }
-    
+
     /**
      * Check if device is any Pixel device
      */
     private fun isPixelDevice(model: String): Boolean {
         return model.contains("Pixel", ignoreCase = true) ||
-               Build.MANUFACTURER.equals("Google", ignoreCase = true)
+            Build.MANUFACTURER.equals("Google", ignoreCase = true)
     }
-    
+
     /**
      * Get device codename
      */
     private suspend fun getDeviceCodename(): String {
         return try {
             val result = PrivilegedProvider.run {
-                CmdRunner.runCommand("getprop ro.product.device")
+                EnhancedCmdRunner.runCommand("getprop ro.product.device")
             }
             if (result.isSuccess && result.output.isNotEmpty()) {
                 result.output.trim()
@@ -464,14 +464,14 @@ class DeviceProfileManager {
             Build.DEVICE
         }
     }
-    
+
     /**
      * Get security patch level
      */
     private suspend fun getSecurityPatchLevel(): String {
         return try {
             val result = PrivilegedProvider.run {
-                CmdRunner.runCommand("getprop ro.build.version.security_patch")
+                EnhancedCmdRunner.runCommand("getprop ro.build.version.security_patch")
             }
             if (result.isSuccess && result.output.isNotEmpty()) {
                 result.output.trim()
@@ -483,7 +483,7 @@ class DeviceProfileManager {
             Build.VERSION.SECURITY_PATCH
         }
     }
-    
+
     /**
      * Get available device profiles
      */
@@ -494,10 +494,10 @@ class DeviceProfileManager {
             "pixel_6_pro",
             "pixel_6",
             "generic_pixel",
-            "generic_device"
+            "generic_device",
         )
     }
-    
+
     /**
      * Get device profile by name
      */
@@ -513,4 +513,3 @@ class DeviceProfileManager {
         }
     }
 }
-

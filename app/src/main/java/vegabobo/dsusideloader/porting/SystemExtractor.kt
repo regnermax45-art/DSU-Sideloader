@@ -1,14 +1,15 @@
 package vegabobo.dsusideloader.porting
 
 import android.util.Log
+import java.io.File
+import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import vegabobo.dsusideloader.core.StorageManager
-import vegabobo.dsusideloader.model.*
+import vegabobo.dsusideloader.model.HalComponent
+import vegabobo.dsusideloader.model.Session
 import vegabobo.dsusideloader.service.PrivilegedProvider
-import vegabobo.dsusideloader.util.CmdRunner
-import java.io.File
-import java.security.MessageDigest
+import vegabobo.dsusideloader.util.EnhancedCmdRunner
 
 /**
  * Extracts system components from the current device for porting operations
@@ -16,67 +17,70 @@ import java.security.MessageDigest
  */
 class SystemExtractor(
     private val session: Session,
-    private val storageManager: StorageManager
+    private val storageManager: StorageManager,
 ) {
     private val tag = this.javaClass.simpleName
-    
+
     /**
      * Extract all system components needed for porting
      */
     suspend fun extractSystemComponents(): SystemComponents = withContext(Dispatchers.IO) {
         Log.d(tag, "Starting system component extraction")
-        
+
         val extractionDir = File(storageManager.getWorkspaceFolder(), "system_extraction")
         if (!extractionDir.exists()) {
             extractionDir.mkdirs()
         }
-        
+
         val components = SystemComponents(
             systemPartition = extractPartition("system", extractionDir),
             vendorPartition = extractPartition("vendor", extractionDir),
             productPartition = extractPartition("product", extractionDir),
-            bootPartition = if (session.preferences.useBuiltinInstaller) 
-                extractPartition("boot", extractionDir) else null,
-            
+            bootPartition = if (session.preferences.useBuiltinInstaller) {
+                extractPartition("boot", extractionDir)
+            } else {
+                null
+            },
+
             halComponents = extractHalComponents(),
             drivers = extractDriverInfo(),
             buildProperties = extractBuildProperties(),
             systemProperties = extractSystemProperties(),
             selinuxPolicies = extractSelinuxPolicies(),
-            securityPatches = extractSecurityPatches()
+            securityPatches = extractSecurityPatches(),
         )
-        
+
         Log.d(tag, "System component extraction completed")
         components
     }
-    
+
     /**
      * Extract a specific partition from the device
      */
     private suspend fun extractPartition(partitionName: String, extractionDir: File): ExtractedPartition? {
         return try {
             Log.d(tag, "Extracting $partitionName partition")
-            
+
             // Find partition block device
             val partitionPath = findPartitionPath(partitionName)
             if (partitionPath == null) {
                 Log.w(tag, "Partition $partitionName not found")
                 return null
             }
-            
+
             // Get partition info
             val partitionInfo = getPartitionInfo(partitionPath)
-            val outputFile = File(extractionDir, "${partitionName}.img")
-            
+            val outputFile = File(extractionDir, "$partitionName.img")
+
             // Extract partition using dd
             val extractCommand = "dd if=$partitionPath of=${outputFile.absolutePath} bs=1M"
             val result = PrivilegedProvider.run {
-                CmdRunner.runCommand(extractCommand)
+                EnhancedCmdRunner.runCommand(extractCommand)
             }
-            
+
             if (result.isSuccess && outputFile.exists()) {
                 val checksum = calculateChecksum(outputFile)
-                
+
                 ExtractedPartition(
                     name = partitionName,
                     path = partitionPath,
@@ -84,7 +88,7 @@ class SystemExtractor(
                     mountPoint = partitionInfo.mountPoint,
                     fileSystem = partitionInfo.fileSystem,
                     extractedPath = outputFile.absolutePath,
-                    checksum = checksum
+                    checksum = checksum,
                 )
             } else {
                 Log.e(tag, "Failed to extract $partitionName partition: ${result.output}")
@@ -95,7 +99,7 @@ class SystemExtractor(
             null
         }
     }
-    
+
     /**
      * Find the block device path for a partition
      */
@@ -103,74 +107,78 @@ class SystemExtractor(
         val possiblePaths = listOf(
             "/dev/block/by-name/$partitionName",
             "/dev/block/bootdevice/by-name/$partitionName",
-            "/dev/block/platform/*/by-name/$partitionName"
+            "/dev/block/platform/*/by-name/$partitionName",
         )
-        
+
         for (path in possiblePaths) {
             val result = PrivilegedProvider.run {
-                CmdRunner.runCommand("ls $path")
+                EnhancedCmdRunner.runCommand("ls $path")
             }
             if (result.isSuccess) {
                 return path
             }
         }
-        
+
         // Try to find via /proc/mounts
         val mountsResult = PrivilegedProvider.run {
-            CmdRunner.runCommand("cat /proc/mounts | grep $partitionName")
+            EnhancedCmdRunner.runCommand("cat /proc/mounts | grep $partitionName")
         }
-        
+
         if (mountsResult.isSuccess && mountsResult.output.isNotEmpty()) {
             val mountLine = mountsResult.output.lines().firstOrNull()
             return mountLine?.split(" ")?.firstOrNull()
         }
-        
+
         return null
     }
-    
+
     /**
      * Get partition information
      */
     private suspend fun getPartitionInfo(partitionPath: String): PartitionInfo {
         val mountResult = PrivilegedProvider.run {
-            CmdRunner.runCommand("cat /proc/mounts | grep $partitionPath")
+            EnhancedCmdRunner.runCommand("cat /proc/mounts | grep $partitionPath")
         }
-        
+
         val mountPoint = if (mountResult.isSuccess && mountResult.output.isNotEmpty()) {
             mountResult.output.split(" ").getOrNull(1) ?: "unknown"
-        } else "unknown"
-        
-        val fsResult = PrivilegedProvider.run {
-            CmdRunner.runCommand("blkid $partitionPath")
+        } else {
+            "unknown"
         }
-        
+
+        val fsResult = PrivilegedProvider.run {
+            EnhancedCmdRunner.runCommand("blkid $partitionPath")
+        }
+
         val fileSystem = if (fsResult.isSuccess && fsResult.output.contains("TYPE=")) {
             fsResult.output.substringAfter("TYPE=\"").substringBefore("\"")
-        } else "unknown"
-        
+        } else {
+            "unknown"
+        }
+
         return PartitionInfo(mountPoint, fileSystem)
     }
-    
+
     /**
      * Extract Hardware Abstraction Layer components
      */
     private suspend fun extractHalComponents(): List<HalComponent> {
         val halComponents = mutableListOf<HalComponent>()
-        
+
         try {
             // Check vendor/lib64/hw for HAL libraries
             val halDirs = listOf(
                 "/vendor/lib64/hw",
                 "/vendor/lib/hw",
                 "/system/lib64/hw",
-                "/system/lib/hw"
+                "/system/lib/hw",
             )
-            
+
             for (halDir in halDirs) {
                 val result = PrivilegedProvider.run {
-                    CmdRunner.runCommand("ls -la $halDir/*.so 2>/dev/null || true")
+                    EnhancedCmdRunner.runCommand("ls -la $halDir/*.so 2>/dev/null || true")
                 }
-                
+
                 if (result.isSuccess && result.output.isNotEmpty()) {
                     result.output.lines().forEach { line ->
                         if (line.contains(".so")) {
@@ -188,10 +196,10 @@ class SystemExtractor(
         } catch (e: Exception) {
             Log.e(tag, "Error extracting HAL components", e)
         }
-        
+
         return halComponents
     }
-    
+
     /**
      * Parse HAL component from filename
      */
@@ -201,43 +209,52 @@ class SystemExtractor(
             if (parts.size >= 2) {
                 val name = parts[0].replace("android.hardware.", "")
                 val version = parts[1].substringBefore("-")
-                
+
                 HalComponent(
                     name = name,
                     version = version,
                     path = "$directory/$fileName",
-                    interface = parts[0],
+                    interfaceName = parts[0],
                     vendor = "unknown",
-                    isEssential = isEssentialHal(name)
+                    isEssential = isEssentialHal(name),
                 )
-            } else null
+            } else {
+                null
+            }
         } catch (e: Exception) {
             null
         }
     }
-    
+
     /**
      * Check if HAL is essential for device operation
      */
     private fun isEssentialHal(halName: String): Boolean {
         val essentialHals = setOf(
-            "camera", "audio", "graphics", "sensors", "gnss", "radio", "wifi", "bluetooth"
+            "camera",
+            "audio",
+            "graphics",
+            "sensors",
+            "gnss",
+            "radio",
+            "wifi",
+            "bluetooth",
         )
         return essentialHals.any { halName.contains(it, ignoreCase = true) }
     }
-    
+
     /**
      * Extract driver information
      */
     private suspend fun extractDriverInfo(): List<DriverInfo> {
         val drivers = mutableListOf<DriverInfo>()
-        
+
         try {
             // Get loaded kernel modules
             val modulesResult = PrivilegedProvider.run {
-                CmdRunner.runCommand("cat /proc/modules")
+                EnhancedCmdRunner.runCommand("cat /proc/modules")
             }
-            
+
             if (modulesResult.isSuccess) {
                 modulesResult.output.lines().forEach { line ->
                     val parts = line.split(" ")
@@ -247,8 +264,8 @@ class SystemExtractor(
                                 name = parts[0],
                                 version = "unknown",
                                 path = "/system/lib/modules/${parts[0]}.ko",
-                                isKernelModule = true
-                            )
+                                isKernelModule = true,
+                            ),
                         )
                     }
                 }
@@ -256,21 +273,21 @@ class SystemExtractor(
         } catch (e: Exception) {
             Log.e(tag, "Error extracting driver info", e)
         }
-        
+
         return drivers
     }
-    
+
     /**
      * Extract build properties
      */
     private suspend fun extractBuildProperties(): Map<String, String> {
         val properties = mutableMapOf<String, String>()
-        
+
         try {
             val result = PrivilegedProvider.run {
-                CmdRunner.runCommand("cat /system/build.prop")
+                EnhancedCmdRunner.runCommand("cat /system/build.prop")
             }
-            
+
             if (result.isSuccess) {
                 result.output.lines().forEach { line ->
                     if (line.contains("=") && !line.startsWith("#")) {
@@ -284,21 +301,21 @@ class SystemExtractor(
         } catch (e: Exception) {
             Log.e(tag, "Error extracting build properties", e)
         }
-        
+
         return properties
     }
-    
+
     /**
      * Extract system properties
      */
     private suspend fun extractSystemProperties(): Map<String, String> {
         val properties = mutableMapOf<String, String>()
-        
+
         try {
             val result = PrivilegedProvider.run {
-                CmdRunner.runCommand("getprop")
+                EnhancedCmdRunner.runCommand("getprop")
             }
-            
+
             if (result.isSuccess) {
                 result.output.lines().forEach { line ->
                     if (line.contains("]: [")) {
@@ -311,42 +328,42 @@ class SystemExtractor(
         } catch (e: Exception) {
             Log.e(tag, "Error extracting system properties", e)
         }
-        
+
         return properties
     }
-    
+
     /**
      * Extract SELinux policies
      */
     private suspend fun extractSelinuxPolicies(): List<String> {
         val policies = mutableListOf<String>()
-        
+
         try {
             val result = PrivilegedProvider.run {
-                CmdRunner.runCommand("ls /system/etc/selinux/ /vendor/etc/selinux/ 2>/dev/null || true")
+                EnhancedCmdRunner.runCommand("ls /system/etc/selinux/ /vendor/etc/selinux/ 2>/dev/null || true")
             }
-            
+
             if (result.isSuccess) {
                 policies.addAll(result.output.lines().filter { it.isNotEmpty() })
             }
         } catch (e: Exception) {
             Log.e(tag, "Error extracting SELinux policies", e)
         }
-        
+
         return policies
     }
-    
+
     /**
      * Extract security patch information
      */
     private suspend fun extractSecurityPatches(): List<SecurityPatch> {
         val patches = mutableListOf<SecurityPatch>()
-        
+
         try {
             val patchLevelResult = PrivilegedProvider.run {
-                CmdRunner.runCommand("getprop ro.build.version.security_patch")
+                EnhancedCmdRunner.runCommand("getprop ro.build.version.security_patch")
             }
-            
+
             if (patchLevelResult.isSuccess && patchLevelResult.output.isNotEmpty()) {
                 patches.add(
                     SecurityPatch(
@@ -354,17 +371,17 @@ class SystemExtractor(
                         level = patchLevelResult.output.trim(),
                         description = "Android Security Patch Level",
                         patchDate = patchLevelResult.output.trim(),
-                        isApplied = true
-                    )
+                        isApplied = true,
+                    ),
                 )
             }
         } catch (e: Exception) {
             Log.e(tag, "Error extracting security patches", e)
         }
-        
+
         return patches
     }
-    
+
     /**
      * Calculate checksum for extracted file
      */
@@ -391,6 +408,5 @@ class SystemExtractor(
  */
 private data class PartitionInfo(
     val mountPoint: String,
-    val fileSystem: String
+    val fileSystem: String,
 )
-
